@@ -1,15 +1,14 @@
-FROM debian:bullseye-slim
+FROM http-garden-soil:latest
 
 WORKDIR /app
 
-RUN apt -y update && apt -y install --no-install-recommends wget curl php-fpm ncat ca-certificates
+RUN apt -y update && apt -y install --no-install-recommends php-fpm libudns-dev
 
-RUN mkdir /run/php
+ARG APP_REPO
+RUN git clone --recurse-submodules "$APP_REPO"
 
 ARG APP_VERSION
-RUN wget "https://github.com/litespeedtech/openlitespeed/releases/download/v${APP_VERSION}/openlitespeed-${APP_VERSION}-x86_64-linux.tgz" -O openlitespeed.tgz && tar xf openlitespeed.tgz
-
-RUN cd /app/openlitespeed && ./install.sh
+RUN cd /app/openlitespeed && git checkout "$APP_VERSION" && ./build.sh && ./install.sh
 
 RUN rm -rf /usr/local/lsws/Example && mkdir /usr/local/lsws/the_vhost
 COPY echo.php /usr/local/lsws/the_vhost/echo.php
@@ -25,6 +24,6 @@ COPY $VHOST_CONFIG_FILE /usr/local/lsws/conf/the_vhost.conf
 ARG BACKEND
 RUN sed -i "s/PROXY_BACKEND_PLACEHOLDER/$BACKEND/g" /usr/local/lsws/conf/httpd_config.conf
 
-RUN sed -i 's/^pm\.max_children = 5$/pm.max_children = 500/' /etc/php/7.4/fpm/pool.d/www.conf
+RUN sed -i 's/^pm\.max_children = 5$/pm.max_children = 500/' /etc/php/8.2/fpm/pool.d/www.conf
 
-CMD php-fpm7.4 && chown nobody:nogroup /run/php/php7.4-fpm.sock && /usr/local/lsws/bin/litespeed && sleep infinity
+CMD php-fpm8.2 && chown nobody:nogroup /run/php/php8.2-fpm.sock && /usr/local/lsws/bin/litespeed && sleep infinity
